@@ -1,7 +1,12 @@
 #!/usr/bin/python3
 
-import os
+# append path
 import sys
+site_package = '/home/tosaki/.local/lib/python3.7/site-packages'
+if site_package not in sys.path:
+    sys.path.append(site_package)
+
+import os
 import logging
 import requests
 import traceback
