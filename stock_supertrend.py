@@ -217,7 +217,7 @@ def job():
 
         # 並列処理
         pool = Pool(4)
-        pool.map(judge_stock, stocks[82:].to_dict(orient = 'records'))
+        pool.map(judge_stock, stocks.to_dict(orient = 'records'))
 
         elapsed_time = time.time() - start_time
         logger.info('end job. elapsed time {} sec'.format(elapsed_time))
