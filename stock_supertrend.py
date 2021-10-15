@@ -1,15 +1,11 @@
 #!/usr/bin/python3
 
-# append path
-import sys
-site_package = '/home/tosaki/.local/lib/python3.7/site-packages'
-if site_package not in sys.path:
-    sys.path.append(site_package)
-
 import os
+import sys
 import logging
 import requests
 import traceback
+import argparse
 from multiprocessing import Pool
 
 import time
@@ -24,9 +20,19 @@ import mplfinance as mpf
 # ロギング
 logger = logging.getLogger(__name__)
 
+# パーサー
+parser = argparse.ArgumentParser()
+parser.add_argument('--debug', action='store_true', help='print debug log')
+parser.add_argument('--single', action='store_true', help='single process')
+parser.add_argument('--run', action='store_true', help='not schedule')
+parser.add_argument('-t', '--target', default='', help='symbol')
+args = parser.parse_args()
+
 def setup_logger():
-    # logger.setLevel(logging.INFO)
-    logger.setLevel(logging.DEBUG)
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s')
 
@@ -190,7 +196,7 @@ def judge_stock(row):
                 chart['SUPERT_10_3.0'][-1],
             ))
     except:
-        print(row)
+        logger.error(row)
         traceback.print_exc()
 
 def line_notify(message, file = None):
@@ -220,9 +226,21 @@ def job():
         )
         logger.info('total stocks {}'.format(len(stocks.index)))
 
-        # 並列処理
-        pool = Pool(4)
-        pool.map(judge_stock, stocks.to_dict(orient = 'records'))
+        if args.target != '':
+            target = stocks.query('symbol == "{}"'.format(args.target))
+
+            if len(target.index) > 0:
+                judge_stock(target.to_dict(orient = 'records')[0])
+            else:
+                logger.warning('cannot found {}'.format(args.target))
+        elif args.single:
+            logger.info('single process')
+            for s in stocks.to_dict(orient = 'records'):
+                judge_stock(s)
+        else:
+            # 並列処理
+            pool = Pool(4)
+            pool.map(judge_stock, stocks.to_dict(orient = 'records'))
 
         elapsed_time = time.time() - start_time
         logger.info('end job. elapsed time {} sec'.format(elapsed_time))
@@ -234,7 +252,9 @@ if __name__=='__main__':
     setup_logger()
     logger.info('start script')
 
-    if True:
+    if args.run:
+        job()
+    else:
         # スケジュールを設定
         schedule.every().day.at("00:00").do(job)
 
@@ -242,6 +262,4 @@ if __name__=='__main__':
         while True:
             schedule.run_pending()
             time.sleep(1)
-    else:
-        job()
 
