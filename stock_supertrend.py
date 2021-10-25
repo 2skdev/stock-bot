@@ -3,6 +3,7 @@
 import os
 import sys
 import logging
+import tempfile
 import requests
 import traceback
 import argparse
@@ -39,7 +40,12 @@ def setup_logger():
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
 
+    path = os.path.dirname(os.path.abspath(__file__)) + '/trace.log'
+    file_handler = logging.FileHandler(filename = path)
+    file_handler.setFormatter(formatter)
+
     logger.addHandler(stream_handler)
+    logger.addHandler(file_handler)
 
     return logger
 
@@ -116,7 +122,7 @@ def judge_stock(row):
         )
 
         # 監視対象のフィルタリング
-        if info['Prev. Close'][0] > 7000 or info['Prev. Close'][0] < 700 or info['Volume'][0] < 100000:
+        if info['Prev. Close'][0] > 7000 or info['Prev. Close'][0] < 500 or info['Volume'][0] < 70000:
             logger.debug(' -- {} ignore. price:{} volume:{}'.format(
                 row['symbol'],
                 info['Prev. Close'][0],
@@ -163,10 +169,10 @@ def judge_stock(row):
             ))
 
             # グラフ保存パス
-            savefig = './{}.png'.format(row['symbol'])
+            _, temp = tempfile.mkstemp(suffix='.png')
 
             # グラフ保存
-            save_chart(row, chart, savefig = savefig)
+            save_chart(row, chart, savefig = temp)
 
             # Lineへ通知
             message = ''
@@ -184,9 +190,9 @@ def judge_stock(row):
             message += '\n判定 : {}'.format('買い' if buy else '売り')
             message += '\nhttps://m.finance.yahoo.co.jp/stock?code={}.T'.format(row['symbol'])
 
-            with open(savefig, 'rb') as f:
+            with open(temp, 'rb') as f:
                 line_notify(message, file = f)
-            os.remove(savefig)
+            os.remove(temp)
 
         else:
             logger.debug(' -- {} not sell or buy. price:{} ema200:{} supertrend:{}'.format(
@@ -197,7 +203,9 @@ def judge_stock(row):
             ))
     except:
         logger.error(row)
-        traceback.print_exc()
+        etype, evalue, _ = sys.exc_info()
+        execption = traceback.format_exception_only(etype, evalue)[0].rstrip('\r\n')
+        logger.error(' -- {} {}'.format(row['symbol'], execption))
 
 def line_notify(message, file = None):
     url = 'https://notify-api.line.me/api/notify'
@@ -205,11 +213,10 @@ def line_notify(message, file = None):
     headers = {'Authorization': 'Bearer ' + token}
 
     payload = {'message': message}
+    files = {}
 
     if file is not None:
         files = {'imageFile': file}
-    else:
-        files = {}
 
     requests.post(url, headers = headers, params = payload, files = files)
 
