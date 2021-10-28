@@ -96,8 +96,12 @@ def save_chart(row, chart, savefig, days = 50):
     chart = chart.tail(days)
 
     adp = [
-        mpf.make_addplot(chart['SUPERTl_10_3.0'], panel = 0, width = 1, color = 'green'),
-        mpf.make_addplot(chart['SUPERTs_10_3.0'], panel = 0, width = 1, color = 'red'),
+        mpf.make_addplot(chart['SUPERTl_10_1.0'], panel = 0, width = 1, color = 'green'),
+        mpf.make_addplot(chart['SUPERTl_11_2.0'], panel = 0, width = 1, color = 'green'),
+        mpf.make_addplot(chart['SUPERTl_12_3.0'], panel = 0, width = 1, color = 'green'),
+        mpf.make_addplot(chart['SUPERTs_10_1.0'], panel = 0, width = 1, color = 'red'),
+        mpf.make_addplot(chart['SUPERTs_11_2.0'], panel = 0, width = 1, color = 'red'),
+        mpf.make_addplot(chart['SUPERTs_12_3.0'], panel = 0, width = 1, color = 'red'),
     ]
 
     mpf.plot(
@@ -150,22 +154,43 @@ def judge_stock(row):
             low = chart['Low'],
             close = chart['Close'],
             length = 10,
+            multiplier = 1.0
+        )
+        chart = pd.concat([chart, supertrend], axis = 1)
+        supertrend = ta.supertrend(
+            high = chart['High'],
+            low = chart['Low'],
+            close = chart['Close'],
+            length = 11,
+            multiplier = 2.0
+        )
+        chart = pd.concat([chart, supertrend], axis = 1)
+        supertrend = ta.supertrend(
+            high = chart['High'],
+            low = chart['Low'],
+            close = chart['Close'],
+            length = 12,
             multiplier = 3.0
         )
         chart = pd.concat([chart, supertrend], axis = 1)
 
         # 売買判定
-        buy  = (chart['SUPERTd_10_3.0'][-2] == -1 and chart['SUPERTd_10_3.0'][-1] == 1) and (ema200 < chart['Close'][-1])
-        sell = (chart['SUPERTd_10_3.0'][-2] == 1 and chart['SUPERTd_10_3.0'][-1] == -1) and (ema200 > chart['Close'][-1])
+        buy  = (chart['SUPERTd_10_1.0'][-2] == -1 and chart['SUPERTd_10_1.0'][-1] == 1) and \
+               (chart['SUPERTd_11_2.0'][-2] == -1 and chart['SUPERTd_11_2.0'][-1] == 1) and \
+               (chart['SUPERTd_12_3.0'][-2] == -1 and chart['SUPERTd_12_3.0'][-1] == 1) and \
+               (ema200 < chart['Close'][-1])
+        sell = (chart['SUPERTd_10_1.0'][-2] == 1 and chart['SUPERTd_10_1.0'][-1] == -1) and \
+               (chart['SUPERTd_11_2.0'][-2] == 1 and chart['SUPERTd_11_2.0'][-1] == -1) and \
+               (chart['SUPERTd_12_3.0'][-2] == 1 and chart['SUPERTd_12_3.0'][-1] == -1) and \
+               (ema200 > chart['Close'][-1])
 
         # 通知
         if sell or buy:
-            logger.debug(' -- {} {}. price:{} ema200:{} supertrend:{}'.format(
+            logger.debug(' -- {} {}. price:{} volume:{}'.format(
                 row['symbol'],
                 'buy' if buy else 'sell',
                 chart['Close'][-1],
-                ema200,
-                chart['SUPERT_10_3.0'][-1],
+                chart['Volume'][-1],
             ))
 
             # グラフ保存パス
@@ -186,7 +211,9 @@ def judge_stock(row):
             message += '\n安値 : {}'.format(chart['Low'].values[-1])
             message += '\n出来高 : {}'.format(chart['Volume'].values[-1])
             message += '\nEMA200 : {}'.format(ema200)
-            message += '\nSuperTrend : {}'.format(round(chart['SUPERT_10_3.0'][-1]))
+            message += '\nSuperTrend_10_1 : {}'.format(round(chart['SUPERT_10_1.0'][-1]))
+            message += '\nSuperTrend_11_2 : {}'.format(round(chart['SUPERT_11_2.0'][-1]))
+            message += '\nSuperTrend_12_3 : {}'.format(round(chart['SUPERT_12_3.0'][-1]))
             message += '\n判定 : {}'.format('買い' if buy else '売り')
             message += '\nhttps://m.finance.yahoo.co.jp/stock?code={}.T'.format(row['symbol'])
 
@@ -195,17 +222,15 @@ def judge_stock(row):
             os.remove(temp)
 
         else:
-            logger.debug(' -- {} not sell or buy. price:{} ema200:{} supertrend:{}'.format(
+            logger.debug(' -- {} not sell or buy. price:{} volume:{}'.format(
                 row['symbol'],
                 chart['Close'][-1],
-                ema200,
-                chart['SUPERT_10_3.0'][-1],
+                chart['Volume'][-1],
             ))
     except:
-        logger.error(row)
-        etype, evalue, _ = sys.exc_info()
-        execption = traceback.format_exception_only(etype, evalue)[0].rstrip('\r\n')
-        logger.error(' -- {} {}'.format(row['symbol'], execption))
+        etype, evalue, etraceback = sys.exc_info()
+        execption = traceback.format_exception(etype, evalue, etraceback)
+        logger.error(' -- {} {}'.format(row['symbol'], ''.join(execption)))
 
 def line_notify(message, file = None):
     url = 'https://notify-api.line.me/api/notify'
