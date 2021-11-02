@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 # パーサー
 parser = argparse.ArgumentParser()
+parser.add_argument('--log', action='store_true', help='output log file')
 parser.add_argument('--debug', action='store_true', help='print debug log')
 parser.add_argument('--single', action='store_true', help='single process')
 parser.add_argument('--run', action='store_true', help='not schedule')
@@ -39,13 +40,13 @@ def setup_logger():
 
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
-
-    path = os.path.dirname(os.path.abspath(__file__)) + '/trace.log'
-    file_handler = logging.FileHandler(filename = path)
-    file_handler.setFormatter(formatter)
-
     logger.addHandler(stream_handler)
-    logger.addHandler(file_handler)
+
+    if args.log:
+        path = os.path.dirname(os.path.abspath(__file__)) + '/trace.log'
+        file_handler = logging.FileHandler(filename = path)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
     return logger
 
@@ -126,7 +127,7 @@ def judge_stock(row):
         )
 
         # 監視対象のフィルタリング
-        if info['Prev. Close'][0] > 7000 or info['Prev. Close'][0] < 500 or info['Volume'][0] < 70000:
+        if info['Prev. Close'][0] > 7000 or info['Prev. Close'][0] < 700 or info['Volume'][0] < 100000:
             logger.debug(' -- {} ignore. price:{} volume:{}'.format(
                 row['symbol'],
                 info['Prev. Close'][0],
@@ -173,15 +174,14 @@ def judge_stock(row):
             multiplier = 3.0
         )
         chart = pd.concat([chart, supertrend], axis = 1)
+        chart['SUPERTd_SUM'] = chart['SUPERTd_10_1.0'] + chart['SUPERTd_11_2.0'] + chart['SUPERTd_12_3.0']
 
         # 売買判定
-        buy  = (chart['SUPERTd_10_1.0'][-2] == -1 and chart['SUPERTd_10_1.0'][-1] == 1) and \
-               (chart['SUPERTd_11_2.0'][-2] == -1 and chart['SUPERTd_11_2.0'][-1] == 1) and \
-               (chart['SUPERTd_12_3.0'][-2] == -1 and chart['SUPERTd_12_3.0'][-1] == 1) and \
+        buy  = (chart['SUPERTd_SUM'][-2] < 3 and chart['SUPERTd_SUM'][-2] > -3 and chart['SUPERTd_SUM'][-1] == 3) and \
+               (3 not in chart['SUPERTd_SUM'][-11:-1].values) and \
                (ema200 < chart['Close'][-1])
-        sell = (chart['SUPERTd_10_1.0'][-2] == 1 and chart['SUPERTd_10_1.0'][-1] == -1) and \
-               (chart['SUPERTd_11_2.0'][-2] == 1 and chart['SUPERTd_11_2.0'][-1] == -1) and \
-               (chart['SUPERTd_12_3.0'][-2] == 1 and chart['SUPERTd_12_3.0'][-1] == -1) and \
+        sell = (chart['SUPERTd_SUM'][-2] < 3 and chart['SUPERTd_SUM'][-2] > -3 and chart['SUPERTd_SUM'][-1] == -3) and \
+               (-3 not in chart['SUPERTd_SUM'][-11:-1].values) and \
                (ema200 > chart['Close'][-1])
 
         # 通知
