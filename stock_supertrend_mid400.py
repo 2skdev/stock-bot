@@ -18,6 +18,8 @@ import pandas_ta as ta
 import investpy
 import mplfinance as mpf
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
 # ロギング
 logger = logging.getLogger(__name__)
 
@@ -43,7 +45,7 @@ def setup_logger():
     logger.addHandler(stream_handler)
 
     if args.log:
-        path = os.path.dirname(os.path.abspath(__file__)) + '/trace.log'
+        path = script_dir + '/trace.log'
         file_handler = logging.FileHandler(filename = path)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
@@ -66,7 +68,7 @@ def call_with_retry(func, *args, **kwargs):
 
 
 def get_topix_mid400():
-    tse_xls = 'data_j.xls'
+    tse_xls = script_dir + '/data_j.xls'
 
     url = 'https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls'
     r = requests.get(url)
@@ -193,11 +195,11 @@ def judge_stock(row):
         chart['SUPERTd_SUM'] = chart['SUPERTd_10_1.0'] + chart['SUPERTd_11_2.0'] + chart['SUPERTd_12_3.0']
 
         # 売買判定
-        buy  = (chart['SUPERTd_SUM'][-2] < 3 and chart['SUPERTd_SUM'][-2] > -3 and chart['SUPERTd_SUM'][-1] == 3) and \
-               (3 not in chart['SUPERTd_SUM'][-11:-1].values) and \
+        buy  = (chart['SUPERTd_SUM'][-3] < 3 and chart['SUPERTd_SUM'][-3] > -3 and chart['SUPERTd_SUM'][-2] == 3 and chart['SUPERTd_SUM'][-1] == 3) and \
+               (3 not in chart['SUPERTd_SUM'][-12:-2].values) and \
                (ema200 < chart['Close'][-1])
-        sell = (chart['SUPERTd_SUM'][-2] < 3 and chart['SUPERTd_SUM'][-2] > -3 and chart['SUPERTd_SUM'][-1] == -3) and \
-               (-3 not in chart['SUPERTd_SUM'][-11:-1].values) and \
+        sell = (chart['SUPERTd_SUM'][-3] < 3 and chart['SUPERTd_SUM'][-3] > -3 and chart['SUPERTd_SUM'][-2] == -3 and chart['SUPERTd_SUM'][-1] == -3) and \
+               (-3 not in chart['SUPERTd_SUM'][-12:-2].values) and \
                (ema200 > chart['Close'][-1])
 
         # 通知
@@ -301,7 +303,7 @@ if __name__=='__main__':
         job()
     else:
         # スケジュールを設定
-        schedule.every().day.at("09:00").do(job)
+        schedule.every().day.at("09:30").do(job)
 
         # job実行ループ
         while True:

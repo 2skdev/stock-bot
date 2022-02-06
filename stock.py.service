@@ -1,0 +1,10 @@
+[Unit]
+Description=stock search daemon
+
+[Service]
+ExecStart=/usr/bin/python3 /home/tosaki/dev/stock/stock_supertrend_mid400.py --debug
+Restart=no
+User=tosaki
+
+[Install]
+WantedBy=multi-user.target
